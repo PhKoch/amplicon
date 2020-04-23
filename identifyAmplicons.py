@@ -37,6 +37,9 @@ def pars():
 						help='Primer Sequences in fasta format (required). Details see below.')
 	parser.add_argument('-d', '--debug', dest='loglevel', action='store_const',
 						const=logging.DEBUG, default=logging.INFO, help='Show debug messages')
+	# "positional argument" for the fastq
+	parser.add_argument('fastq', type=argparse.FileType('r', encoding='UTF-8'),
+						help='Reads containing the amplicons in fastq format (required).')
 
 	args = parser.parse_args()
 
@@ -97,24 +100,9 @@ def getPrimerPairs(file):
 def main():
 	(parser, args) = pars()
 
-	# #create a sequence object
-	oneread = Seq("CCACACCCAGCTACTGACCTATACAACAGAAGGAAAAGTGCTATGTTTGGACATGGAATTCTTAGGAGCAACAGCTGGAAGAG")
-	# #print out some details about it
-	# print("seq %s is %i bases long" % (oneread, len(oneread)))
-	# print("reverse complement is %s" % oneread.reverse_complement())
-	# print("protein translation is %s" % oneread.translate())
-	# print (dir(oneread))
-	# if(oneread.startswith("CCACACCC") & oneread.endswith("GGAAGAG")):
-	#	 print ('match for:' + oneread)
-
 	## read the primers file and get back structured records
 	primerPairs = getPrimerPairs(args.primersfile)
 	#print (primerPairs)
-
-	# test
-	# for amplicon in primerPairs:
-	#	 print(primerPairs[amplicon][1].id, primerPairs[amplicon][1].seq + ", revcomp: " + primerPairs[amplicon][1].seq.reverse_complement())
-
 
 	# just a helper:
 	linenumber = 1
@@ -125,33 +113,84 @@ def main():
 	# we turn the content into a list of SeqRecord items. Because we will
 	# iterate multiple times through it and also want to calculate
 	# the number of entries in the fastq file.
-	fqrecords = list (SeqIO.parse("Pool_A.merged.800.fastq", "fastq"))
+	fqrecords = list (SeqIO.parse(args.fastq, "fastq"))
+	# close the file handle as it was opend automatically by ArgumentParser
+	args.fastq.close()
 
 	# ATTENTION: some reads start with one "N" but would have hits. why is this???
+
+	# prepare an output file
+	# - the read sequence which is written to the end of a line is reverse complemented if the hit is on the minus strand
+	# - by default we write only hits in this file. Can be extended later to write non hitting reads as well.
+	outtabfile = open("outfile.txt",'w')
+	# add the headerline to the file
+	outtabfileHeaderline = 'read_id\t'
+	outtabfileHeaderline += 'read_strand\t'
+	outtabfileHeaderline += 'read_length\t'
+	outtabfileHeaderline += 'amplicon_name\t'
+	outtabfileHeaderline += 'left_primer_name\t'
+	outtabfileHeaderline += 'left_primer_seq\t'
+	outtabfileHeaderline += 'right_primer_name\t'
+	outtabfileHeaderline += 'right_primer_seq\t'
+	outtabfileHeaderline += 'read_seq\n'
+	outtabfile.write(outtabfileHeaderline)
+
+	# prepare an output file for not matching reads
+	unmatchedreads = list()
+
 
 	## loop through the fqrecords
 	for read in fqrecords:
 		#print ("%i %s" % (linenumber, read.id))
 		## for each read we check all amplicons for a match,
 		# so loop through the primer pairs
+		foundmatch = False
 		for amplicon in primerPairs:
+			leftseq = primerPairs[amplicon][0]
+			rightseq = primerPairs[amplicon][1]
 			# check for match on + strand
-			if(read.seq.startswith(primerPairs[amplicon][0].seq) & read.seq.endswith(primerPairs[amplicon][1].seq)):
-				print ("%i +++ %s" % (linenumber, read.id))
-				print (str(linenumber) + '     match for: ' + read.seq)
-				print (str(linenumber) + "     read length: %i | primer left: %s (%s) | primer right %s (%s)\n" % (len(read.seq), primerPairs[amplicon][0].id,primerPairs[amplicon][0].seq,primerPairs[amplicon][1].id,primerPairs[amplicon][1].seq))
+			if(read.seq.startswith(leftseq.seq) & read.seq.endswith(rightseq.seq)):
+				#print ("%i +++ %s" % (linenumber, read.id))
+				#print (str(linenumber) + '     match for: ' + read.seq)
+				#print (str(linenumber) + "     read length: %i | primer left: %s (%s) | primer right %s (%s)\n" % (len(read.seq), leftseq.id,leftseq.seq,rightseq.id,rightseq.seq))
+				foundmatch = True
+				outtabfile.write("%s\t%s\t%i\t%s\t%s\t%s\t%s\t%s\t%s\n" % (read.id,
+																			'+',
+																			len(read.seq),
+																			amplicon,
+																			leftseq.id,
+																			leftseq.seq,
+																			rightseq.id,
+																			rightseq.seq,
+																			read.seq))
 			# check for match on - strand
-			elif(read.seq.startswith(primerPairs[amplicon][1].seq.reverse_complement()) & read.seq.endswith(primerPairs[amplicon][0].seq.reverse_complement())):
-				print ("%i --- %s" % (linenumber, read.id))
-				print (str(linenumber) + '     match for: ' + read.seq)
-				print (str(linenumber) + "     read length: %i | primer left: %s (revcompl) (%s) | primer right %s (revcompl) (%s)\n" % (len(read.seq), primerPairs[amplicon][1].id,primerPairs[amplicon][1].seq.reverse_complement(),primerPairs[amplicon][0].id,primerPairs[amplicon][0].seq.reverse_complement()))
-
+			elif(read.seq.startswith(rightseq.seq.reverse_complement()) & read.seq.endswith(leftseq.seq.reverse_complement())):
+				#print ("%i --- %s" % (linenumber, read.id))
+				#print (str(linenumber) + '     match for: ' + read.seq)
+				#print (str(linenumber) + "     read length: %i | primer left: %s (revcompl) (%s) | primer right %s (revcompl) (%s)\n" % (len(read.seq), rightseq.id,rightseq.seq.reverse_complement(),leftseq.id,leftseq.seq.reverse_complement()))
+				foundmatch = True
+				outtabfile.write("%s\t%s\t%i\t%s\t%s\t%s\t%s\t%s\t%s\n" % (read.id,
+																			'-',
+																			len(read.seq),
+																			amplicon,
+																			leftseq.id,
+																			leftseq.seq,
+																			rightseq.id,
+																			rightseq.seq,
+																			read.seq.reverse_complement()))
 			# no hit for this amplicon
 			else:
 				print (str(linenumber) + ' NO match for: ' + read.seq + "\n")
+
 		linenumber = linenumber + 1
+		if foundmatch == False:
+			unmatchedreads.append(read)
 	# print (len(fqrecords))
 
+	outtabfile.close
 
+	# write the unmatched reads to a file
+	SeqIO.write(unmatchedreads, "unmatched_reads.fq", "fastq")
+	print ("wrote %i unmatched reads to the file unmatched_reads.fq" % len(unmatchedreads))
 if __name__ == "__main__":
 	main()
