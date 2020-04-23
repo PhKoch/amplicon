@@ -1,0 +1,3 @@
+littletest:
+  script:
+    - identifyAmplicons.py --primers primers.fa
