@@ -107,18 +107,6 @@ def main():
 	# just a helper:
 	linenumber = 1
 
-	# read in the fastq file
-	# Although it is elegant to use the iterator to go through the fastq
-	# for read in SeqIO.parse("Pool_A.merged.800.fastq", "fastq"):
-	# we turn the content into a list of SeqRecord items. Because we will
-	# iterate multiple times through it and also want to calculate
-	# the number of entries in the fastq file.
-	fqrecords = list (SeqIO.parse(args.fastq, "fastq"))
-	# close the file handle as it was opend automatically by ArgumentParser
-	args.fastq.close()
-
-	# ATTENTION: some reads start with one "N" but would have hits. why is this???
-
 	# prepare an output file
 	# - the read sequence which is written to the end of a line is reverse complemented if the hit is on the minus strand
 	# - by default we write only hits in this file. Can be extended later to write non hitting reads as well.
@@ -137,10 +125,12 @@ def main():
 
 	# prepare an output file for not matching reads
 	unmatchedreads = list()
-
-
-	## loop through the fqrecords
-	for read in fqrecords:
+	readnumber = 0
+	matchnumber = 0
+	# ATTENTION: some reads start with one "N" but would have hits. why is this???
+	## iterate through the fqrecords
+	for read in SeqIO.parse(args.fastq, "fastq"):
+		readnumber = readnumber + 1
 		#print ("%i %s" % (linenumber, read.id))
 		## for each read we check all amplicons for a match,
 		# so loop through the primer pairs
@@ -154,6 +144,7 @@ def main():
 				#print (str(linenumber) + '     match for: ' + read.seq)
 				#print (str(linenumber) + "     read length: %i | primer left: %s (%s) | primer right %s (%s)\n" % (len(read.seq), leftseq.id,leftseq.seq,rightseq.id,rightseq.seq))
 				foundmatch = True
+				matchnumber = matchnumber + 1
 				outtabfile.write("%s\t%s\t%i\t%s\t%s\t%s\t%s\t%s\t%s\n" % (read.id,
 																			'+',
 																			len(read.seq),
@@ -169,6 +160,7 @@ def main():
 				#print (str(linenumber) + '     match for: ' + read.seq)
 				#print (str(linenumber) + "     read length: %i | primer left: %s (revcompl) (%s) | primer right %s (revcompl) (%s)\n" % (len(read.seq), rightseq.id,rightseq.seq.reverse_complement(),leftseq.id,leftseq.seq.reverse_complement()))
 				foundmatch = True
+				matchnumber = matchnumber + 1
 				outtabfile.write("%s\t%s\t%i\t%s\t%s\t%s\t%s\t%s\t%s\n" % (read.id,
 																			'-',
 																			len(read.seq),
@@ -179,18 +171,19 @@ def main():
 																			rightseq.seq,
 																			read.seq.reverse_complement()))
 			# no hit for this amplicon
-			else:
-				print (str(linenumber) + ' NO match for: ' + read.seq + "\n")
+			#else:
+				#print (str(linenumber) + ' NO match for: ' + read.seq + "\n")
 
 		linenumber = linenumber + 1
 		if foundmatch == False:
 			unmatchedreads.append(read)
-	# print (len(fqrecords))
 
+	# close the file handle as it was opend automatically by ArgumentParser
+	args.fastq.close()
 	outtabfile.close
 
 	# write the unmatched reads to a file
 	SeqIO.write(unmatchedreads, "unmatched_reads.fq", "fastq")
-	print ("wrote %i unmatched reads to the file unmatched_reads.fq" % len(unmatchedreads))
+	print ("%i reads processed, found %i matches, wrote %i unmatched reads to the file unmatched_reads.fq" % (readnumber,matchnumber,len(unmatchedreads)))
 if __name__ == "__main__":
 	main()
