@@ -23,7 +23,7 @@ def pars():
 
 	First entry - forward primer.
 	Second entry - reverse primer.
-	Amplicons will be matched, based on the second field of the identifier line.
+	Amplicons will be paired, based on the second field of the identifier line.
 	Multiple paires are possible in the file.
 
 	By default amplicons are searched in both directions, so reverse complements
@@ -70,7 +70,10 @@ def getPrimerPairs(file):
 	primerPairs = dict()
 	for record in primers:
 		#print("%s %s %i" % (record.id, repr(record.seq), len(record)))
-		ampName = record.description.split()[1]
+		try:
+			ampName = record.description.split()[1]
+		except IndexError as err:
+			sys.exit('ERROR: The entry "' + record.name + '" in the primers fasta file has no second field. But this field is needed to identify a pair of primers. exiting.')
 		logging.debug("parsing entry for amplicon " + ampName + " " + record.seq)
 		# if there is no entry for the ampName, build one
 		if not primerPairs.get(ampName):
@@ -79,8 +82,8 @@ def getPrimerPairs(file):
 		# if there is already an entry for ampName, add the second sequences
 		# (currently, this is not very robust as we do not ask for amplicons with >2 entries in the fasta file.)
 		else:
-			primerTupel = (primerPairs.get(ampName),record)
-			primerPairs.update({ampName : primerTupel})
+			primerTuple = (primerPairs.get(ampName),record)
+			primerPairs.update({ampName : primerTuple})
 			logging.debug("added " + record.seq + " to " + ampName)
 		#print (primerPairs)
 		logging.debug(primerPairs[ampName])
@@ -89,8 +92,10 @@ def getPrimerPairs(file):
 	logging.debug(primerPairs)
 	#print(primerPairs)
 
-	# old output of the function (only the list of SeqRecord objects)
-	# return primers
+	# final validity check
+	for pair in primerPairs:
+		if not type(primerPairs.get(pair)) == tuple:
+			sys.exit('ERROR: No valid pairing found for amplicon "' + pair + '". Please check the primers input file for validity.')
 
 	# return a dictionary of structure {Amplicon_name : (SeqRecord,SeqRecord)}
 	# that can be given to Seq.startswith()/endswith()
