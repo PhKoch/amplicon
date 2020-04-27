@@ -116,7 +116,8 @@ def main():
 	# prepare an output file
 	# - the read sequence which is written to the end of a line is reverse complemented if the hit is on the minus strand
 	# - by default we write only hits in this file. Can be extended later to write non hitting reads as well.
-	outtabfile = open(Path(args.fastq.name).stem + ".matches.csv",'w')
+	outtabfilename = Path(args.fastq.name).stem + ".matches.csv"
+	outtabfile = open(outtabfilename,'w')
 	# add the headerline to the file
 	outtabfileHeaderline = 'read_id\t'
 	outtabfileHeaderline += 'read_strand\t'
@@ -189,8 +190,14 @@ def main():
 	outtabfile.close
 
 	# write the unmatched reads to a file
-	SeqIO.write(unmatchedreads, Path(args.fastq.name).stem + ".unmatched.fastq", "fastq")
-	print ("Summary:\n%i reads processed\n%i matches found, written to .matched.csv\n%i unmatched reads, written to .unmatched.fastq" % (readnumber,matchnumber,len(unmatchedreads)))
+	unmatchedreadsfilename = Path(args.fastq.name).stem + ".unmatched.fastq"
+	SeqIO.write(unmatchedreads, unmatchedreadsfilename, "fastq")
+
+	# output a summary
+	print ("Summary:")
+	print ("%i reads processed" % readnumber)
+	print ("%i matches found, written to %s" % (matchnumber,outtabfilename))
+	print ("%i unmatched reads, written to %s" % (len(unmatchedreads),unmatchedreadsfilename))
 
 if __name__ == "__main__":
 	main()
