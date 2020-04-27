@@ -1,5 +1,6 @@
 from Bio.Seq import Seq
 from Bio import SeqIO
+from pathlib import Path
 
 import argparse
 import textwrap
@@ -110,7 +111,7 @@ def main():
 	# prepare an output file
 	# - the read sequence which is written to the end of a line is reverse complemented if the hit is on the minus strand
 	# - by default we write only hits in this file. Can be extended later to write non hitting reads as well.
-	outtabfile = open("outfile.txt",'w')
+	outtabfile = open(Path(args.fastq.name).stem + ".matches.csv",'w')
 	# add the headerline to the file
 	outtabfileHeaderline = 'read_id\t'
 	outtabfileHeaderline += 'read_strand\t'
@@ -183,7 +184,8 @@ def main():
 	outtabfile.close
 
 	# write the unmatched reads to a file
-	SeqIO.write(unmatchedreads, "unmatched_reads.fq", "fastq")
-	print ("%i reads processed, found %i matches, wrote %i unmatched reads to the file unmatched_reads.fq" % (readnumber,matchnumber,len(unmatchedreads)))
+	SeqIO.write(unmatchedreads, Path(args.fastq.name).stem + ".unmatched.fastq", "fastq")
+	print ("Summary:\n%i reads processed\n%i matches found, written to .matched.csv\n%i unmatched reads, written to .unmatched.fastq" % (readnumber,matchnumber,len(unmatchedreads)))
+
 if __name__ == "__main__":
 	main()
