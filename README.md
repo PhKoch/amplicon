@@ -52,7 +52,7 @@ The "Algorithm" is pretty basic and can be described as below.
 
 * The script was tested on and applied to 2x300bp paired-end MiSeq reads that were merged with `usearch`, as some expected amplicons were `>300bp`. In principle, it should work also on single files (R1/R2, one per run) of a paired end data set.
 * By default, amplicons are searched in both directions, so reverse complements will automatically be calculated.
-* If the reverse complement of a primer pair identifies an amplicon on the negative strand, its output in the `matched.csv` file will be reverse complemented to have unified sequences. Ouf course, such a hit on the minus strand is marked with a `-` in the `read_strand` field.
+* If the reverse complement of a primer pair identifies an amplicon on the negative strand, its output in the `matched.tsv` file will be reverse complemented to have unified sequences. Ouf course, such a hit on the minus strand is marked with a `-` in the `read_strand` field.
 
 
 # Compatibility
